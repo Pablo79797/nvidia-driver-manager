@@ -1,4 +1,4 @@
-# NVIDIA Driver Manager v2.0
+# NVIDIA Driver Manager v1.0
 
 A graphical NVIDIA driver manager for Linux with full support for multiple desktop environments.
 
