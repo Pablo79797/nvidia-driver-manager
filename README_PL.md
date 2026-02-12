@@ -1,4 +1,4 @@
-# NVIDIA Driver Manager v2.0
+# NVIDIA Driver Manager v1.0
 
 Graficzny menedżer sterowników NVIDIA dla Linuxa z pełnym wsparciem dla różnych środowisk graficznych.
 
