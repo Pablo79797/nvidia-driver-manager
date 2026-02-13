@@ -176,3 +176,9 @@ Stworzony przez entuzjastę Linuxa który chciał mieć prosty i przejrzysty spo
 ## 📄 Licencja
 
 Projekt jest open source. Szczegóły w pliku [LICENSE](LICENSE).
+
+## ℹ️ Status projektu
+
+Projekt tworzony hobbistycznie, bez gwarancji regularnych aktualizacji. 
+Błędy i sugestie mile widziane w zakładce Issues, jednak czas reakcji 
+może być nieregularny. Projekt udostępniony bezpłatnie dla społeczności.
