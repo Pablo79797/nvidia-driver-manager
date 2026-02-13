@@ -176,3 +176,9 @@ Created by a Linux enthusiast who wanted a simple, clean way to manage NVIDIA dr
 ## 📄 License
 
 This project is open source. See [LICENSE](LICENSE) for details.# nvidia-driver-manager
+
+## ℹ️ Project Status
+
+This project is developed as a hobby, with no guarantee of regular updates.
+Bug reports and suggestions are welcome in the Issues tab, however response 
+time may be irregular. This project is provided free of charge for the community.
