@@ -46,7 +46,7 @@ A graphical NVIDIA driver manager for Linux with full support for multiple deskt
 ## 📋 Requirements
 
 ### System
-- Linux — Ubuntu, Kubuntu, Debian, Linux Mint
+- Linux — Ubuntu, Kubuntu, Debian, Linux Mint, Fedora
 - NVIDIA graphics card
 - Kernel 6.0+ (required for NVK)
 
@@ -54,10 +54,9 @@ A graphical NVIDIA driver manager for Linux with full support for multiple deskt
 - Python 3.6+
 - PySide6 or PyQt6
 
-### System Dependencies (installed automatically)
-- linux-headers
-- dkms
-- build-essential
+### System Dependencies (installed automatically when needed)
+- **Debian/Ubuntu:** linux-headers, dkms, build-essential
+- **Fedora:** kernel-devel, dracut (no dkms; uses akmod for repo driver)
 
 ---
 
@@ -131,7 +130,7 @@ The application creates the following directories under `~/.local/share/nvidia-d
 │   └── errors/         # Error reports
 ├── cache/              # App state and cache
 │   └── backups/        # Configuration backups
-└── install-on-reboot/  # Post-reboot install scripts
+└── install-on-reboot/  # Post-reboot install scripts (copy used at boot: /usr/local/lib/nvidia-run-install/)
 ```
 
 ---
@@ -144,6 +143,12 @@ The application creates the following directories under `~/.local/share/nvidia-d
 - **Backups**: A maximum of 10 most recent backups are kept.
 
 ---
+
+## 🐧 Fedora
+
+- **NVK:** Initramfs (dracut) is built *after* installing Mesa and firmware so that GSP firmware is included (required for RTX 50 / Blackwell with nouveau). When switching from a .run driver to NVK, the app removes leftover NVIDIA kernel modules and libraries to avoid a black screen after reboot.
+- **.run install:** The install script is copied to `/usr/local/lib/nvidia-run-install/` and run from there at boot so SELinux does not block it. Log: `/var/log/nvidia-run-install.log`.
+- **Tools → Status:** If `inxi` is missing, it is installed via `dnf install -y inxi`.
 
 ## 🐛 Troubleshooting
 
