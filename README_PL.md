@@ -46,7 +46,7 @@ Graficzny menedżer sterowników NVIDIA dla Linuxa z pełnym wsparciem dla róż
 ## 📋 Wymagania
 
 ### System
-- Linux — Ubuntu, Kubuntu, Debian, Linux Mint
+- Linux — Ubuntu, Kubuntu, Debian, Linux Mint, Fedora
 - Karta graficzna NVIDIA
 - Kernel 6.0+ (wymagany dla NVK)
 
@@ -55,9 +55,8 @@ Graficzny menedżer sterowników NVIDIA dla Linuxa z pełnym wsparciem dla róż
 - PySide6 lub PyQt6
 
 ### Zależności systemowe (instalowane automatycznie)
-- linux-headers
-- dkms
-- build-essential
+- **Debian/Ubuntu:** linux-headers, dkms, build-essential
+- **Fedora:** kernel-devel, dracut (bez dkms; sterownik z repo używa akmod)
 
 ---
 
@@ -131,7 +130,7 @@ Program tworzy następujące katalogi w `~/.local/share/nvidia-driver-manager/`:
 │   └── errors/         # Raporty błędów
 ├── cache/              # Stan aplikacji i cache
 │   └── backups/        # Kopie zapasowe konfiguracji
-└── install-on-reboot/  # Skrypty instalacyjne po restarcie
+└── install-on-reboot/  # Skrypty instalacyjne po restarcie (kopia używana przy starcie: /usr/local/lib/nvidia-run-install/)
 ```
 
 ---
@@ -142,6 +141,14 @@ Program tworzy następujące katalogi w `~/.local/share/nvidia-driver-manager/`:
 - **NVK**: Wymaga kernela 6.0+. Usuwa sterowniki NVIDIA i DKMS. **Nie wspiera CUDA.**
 - **Instalacja .run**: Instalacja następuje po restarcie systemu.
 - **Kopie zapasowe**: Przechowywanych jest maksymalnie 10 najnowszych backupów.
+
+---
+
+## 🐧 Fedora
+
+- **NVK:** Initramfs (dracut) jest budowany *po* instalacji Mesa i firmware, żeby firmware GSP znalazł się w initramfs (wymagane dla RTX 50 / Blackwell z nouveau). Przy przejściu ze sterownika .run na NVK aplikacja usuwa pozostałe moduły i biblioteki NVIDIA, żeby uniknąć czarnego ekranu po restarcie.
+- **Instalacja .run:** Skrypt instalacyjny jest kopiowany do `/usr/local/lib/nvidia-run-install/` i stamtąd uruchamiany przy starcie (SELinux nie blokuje). Log: `/var/log/nvidia-run-install.log`.
+- **Narzędzia → Status:** Gdy brak `inxi`, jest on instalowany przez `dnf install -y inxi`.
 
 ---
 
