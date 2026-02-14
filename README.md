@@ -137,6 +137,7 @@ The application creates the following directories under `~/.local/share/nvidia-d
 
 ## ⚠️ Important Notes
 
+- **Tested on:** Kubuntu 25.10 (Debian-based), Fedora 43 with KDE Plasma Desktop.
 - **Secure Boot**: If enabled, DKMS module installation may require signing or disabling Secure Boot.
 - **NVK**: Requires kernel 6.0+. Removes NVIDIA proprietary drivers and DKMS. Does **not** support CUDA.
 - **.run installation**: The installation is applied after a system restart.
