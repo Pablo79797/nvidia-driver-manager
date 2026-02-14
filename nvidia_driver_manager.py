@@ -276,6 +276,7 @@ TRANSLATIONS = {
         "log_remove_nvidia_header": "=== USUWANIE STEROWNIKA NVIDIA (przywrócenie nouveau) ===",
         "log_cleaning_nvidia": "Czyszczenie artefaktów NVIDIA...",
         "log_nvidia_libs_visible": "Niektóre biblioteki NVIDIA nadal są widoczne",
+        "log_nvidia_libs_cache_info": "W ldconfig nadal widoczne wpisy NVIDIA (cache); odświeży się po restarcie.",
         "log_config_nouveau": "Konfiguracja nouveau...",
         "log_nvidia_removed": "Sterownik NVIDIA usunięty. Nouveau włączony. Zalecany restart.",
         "log_no_driver_repo": "Nie wykryto sterownika NVIDIA z repo (nvidia-driver-XXX-open).",
@@ -306,6 +307,8 @@ TRANSLATIONS = {
         "log_downloaded": "Pobrano: {0}",
         "log_ldconfig_warning": "OSTRZEŻENIE: ldconfig nadal widzi biblioteki NVIDIA",
         "log_nvidia_pkgs_warning": "OSTRZEŻENIE: Nadal zainstalowane pakiety NVIDIA ({0} pakietów)",
+        "log_nvidia_firmware_kept": "1 pakiet NVIDIA (nvidia-gpu-firmware) zostawiony dla NVK – to oczekiwane.",
+        "log_ldconfig_firmware_ok": "ldconfig nadal pokazuje NVIDIA (firmware); normalne przy NVK.",
         "log_updating_initramfs": "Aktualizacja initramfs...",
         "log_font_changed": "Czcionka zmieniona na: {0} {1}pt",
         "log_theme_dark": "Ciemny",
@@ -387,6 +390,10 @@ TRANSLATIONS = {
         "title_update": "Aktualizacja",
         "msg_no_driver_repo_info": "Nie wykryto zainstalowanego sterownika NVIDIA z repozytorium.",
         "title_deps": "Zależności",
+        "title_dnf5": "Szybszy menedżer pakietów (dnf5)",
+        "msg_dnf5_offer": "dnf5 nie jest zainstalowany.\n\nZainstalować go dla szybszej pracy z repozytoriami?\n(Program będzie używał dnf5 zamiast dnf.)",
+        "log_dnf5_installed": "dnf5 zainstalowany – będzie używany zamiast dnf.",
+        "log_dnf5_failed": "Instalacja dnf5 nie powiodła się – używam dnf.",
         "msg_deps_all_installed": "Wszystkie wymagane pakiety są zainstalowane.",
         "msg_deps_installed_ok": "Brakujące pakiety zostały zainstalowane.",
         "msg_deps_install_failed": "Instalacja nie powiodła się. Sprawdź logi.",
@@ -396,6 +403,7 @@ TRANSLATIONS = {
         "msg_backup_failed": "Przywracanie nie powiodło się lub backup nie zawiera pakietów.",
         "title_install_in_progress": "Instalacja w toku",
         "msg_install_in_progress": "Instalacja sterownika jest w toku.\n\nPoczekaj na zakończenie instalacji, a potem zamknij aplikację.\nZamykanie w trakcie instalacji może spowodować awarię.",
+        "msg_install_close_anyway": "Instalacja jest w toku.\n\nZamknąć program mimo to?\nInstalacja zostanie przerwana.",
         "title_sudo_required": "Wymagane uprawnienia administratora",
         "msg_sudo_ask": "Instalacja sterownika wymaga uprawnień administratora (sudo).\n\nCzy chcesz teraz podać hasło sudo?",
         "title_wrong_password": "Błędne hasło",
@@ -550,6 +558,7 @@ TRANSLATIONS = {
         "log_remove_nvidia_header": "=== REMOVING NVIDIA DRIVER (restore nouveau) ===",
         "log_cleaning_nvidia": "Cleaning NVIDIA artifacts...",
         "log_nvidia_libs_visible": "Some NVIDIA libraries still visible",
+        "log_nvidia_libs_cache_info": "ldconfig still shows NVIDIA entries (cache); will refresh after reboot.",
         "log_config_nouveau": "Configuring nouveau...",
         "log_nvidia_removed": "NVIDIA driver removed. Nouveau enabled. Restart recommended.",
         "log_no_driver_repo": "NVIDIA driver from repo not found (nvidia-driver-XXX-open).",
@@ -580,6 +589,8 @@ TRANSLATIONS = {
         "log_downloaded": "Downloaded: {0}",
         "log_ldconfig_warning": "WARNING: ldconfig still sees NVIDIA libraries",
         "log_nvidia_pkgs_warning": "WARNING: NVIDIA packages still installed ({0} packages)",
+        "log_nvidia_firmware_kept": "1 NVIDIA package (nvidia-gpu-firmware) kept for NVK – expected.",
+        "log_ldconfig_firmware_ok": "ldconfig still lists NVIDIA (firmware); normal for NVK.",
         "log_updating_initramfs": "Updating initramfs...",
         "log_font_changed": "Font changed to: {0} {1}pt",
         "log_theme_dark": "Dark",
@@ -661,6 +672,10 @@ TRANSLATIONS = {
         "title_update": "Update",
         "msg_no_driver_repo_info": "No installed NVIDIA driver from repository found.",
         "title_deps": "Dependencies",
+        "title_dnf5": "Faster package manager (dnf5)",
+        "msg_dnf5_offer": "dnf5 is not installed.\n\nInstall it for faster repository operations?\n(The program will use dnf5 instead of dnf.)",
+        "log_dnf5_installed": "dnf5 installed – will be used instead of dnf.",
+        "log_dnf5_failed": "dnf5 installation failed – using dnf.",
         "msg_deps_all_installed": "All required packages are installed.",
         "msg_deps_installed_ok": "Missing packages have been installed.",
         "msg_deps_install_failed": "Installation failed. Check the logs.",
@@ -670,6 +685,7 @@ TRANSLATIONS = {
         "msg_backup_failed": "Restore failed or backup contains no packages.",
         "title_install_in_progress": "Installation in progress",
         "msg_install_in_progress": "Driver installation is in progress.\n\nWait for installation to complete, then close the application.\nClosing during installation may cause a crash.",
+        "msg_install_close_anyway": "Installation is in progress.\n\nClose the program anyway?\nInstallation will be interrupted.",
         "title_sudo_required": "Administrator privileges required",
         "msg_sudo_ask": "Driver installation requires administrator privileges (sudo).\n\nDo you want to enter your sudo password now?",
         "title_wrong_password": "Wrong password",
@@ -730,8 +746,10 @@ IS_LINUX = platform.system() == "Linux"
 
 if IS_LINUX:
     INSTALL_DIR = Path("/opt/nvidia-installer")
+    SYSTEM_RUN_INSTALL_DIR = "/usr/local/lib/nvidia-run-install"
 else:
     INSTALL_DIR = SCRIPT_DIR / "install"
+    SYSTEM_RUN_INSTALL_DIR = ""
 
 # Tryb demo dla Windows
 DEMO_MODE = IS_WINDOWS
@@ -766,7 +784,22 @@ class SystemManager:
         self.gpu_present = False
         self.gpu_model = ""
         self.current_driver = "brak"
-        
+        self._fedora_repo_version_cache = None  # po pierwszym wywołaniu: "" lub "570.144"
+        self._dnf_cmd: Optional[str] = None  # "dnf5" lub "dnf" (Fedora)
+
+    def get_dnf_cmd(self) -> str:
+        """Na Fedorze zwraca dnf5 jeśli jest dostępny (szybszy), inaczej dnf."""
+        if self.distro_family != "fedora":
+            return "dnf"
+        if self._dnf_cmd is not None:
+            return self._dnf_cmd
+        if self.demo_mode:
+            self._dnf_cmd = "dnf"
+            return self._dnf_cmd
+        rc = self.run_command(["which", "dnf5"], sudo=False, timeout=2)[0]
+        self._dnf_cmd = "dnf5" if rc == 0 else "dnf"
+        return self._dnf_cmd
+
     def _detect_arch(self) -> str:
         """Wykrywa architekturę systemu"""
         if self.demo_mode:
@@ -800,6 +833,8 @@ class SystemManager:
                             self.distro_family = "ubuntu"
                         elif distro_id == "debian":
                             self.distro_family = "debian"
+                        elif distro_id in ["fedora", "rhel", "centos", "rocky", "alma"]:
+                            self.distro_family = "fedora"
                         else:
                             self.distro_family = "other"
                     elif line.startswith("NAME="):
@@ -951,6 +986,10 @@ class SystemManager:
         if self.demo_mode:
             return "580.126.09"
         
+        if self.distro_family == "fedora":
+            ver = self._fedora_repo_driver_version()
+            return ver if ver else "580"
+        
         available = []
         for v in [610, 600, 590, 580, 550, 535, 525, 515]:
             result = self.run_command(["apt-cache", "show", f"nvidia-driver-{v}-open"], 
@@ -968,10 +1007,37 @@ class SystemManager:
             return available[0][1] if "." in available[0][1] else str(available[0][0])
         return "580"
     
+    def _fedora_repo_driver_version(self) -> str:
+        """Wersja akmod-nvidia z repo (Fedora/RPM Fusion). Zwraca np. 570.144 lub pusty string. Wynik cache'owany (jedno wywołanie dnf przy starcie)."""
+        if self._fedora_repo_version_cache is not None:
+            return self._fedora_repo_version_cache
+        dnf = self.get_dnf_cmd()
+        result = self.run_command(
+            ["env", "DNF_FRONTEND=noninteractive", dnf, "list", "available", "akmod-nvidia", "-q"],
+            sudo=False, timeout=60
+        )
+        ver = ""
+        if result[0] == 0 and result[1]:
+            for line in result[1].split("\n"):
+                if "akmod-nvidia" in line and ".x86_64" in line:
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        ver = parts[1].split("-")[0]
+                        if "." in ver:
+                            break
+                    ver = ""
+                    break
+        self._fedora_repo_version_cache = ver
+        return ver
+    
     def highest_repo_driver_latest(self) -> str:
         """Znajduje najwyższą wersję w repo"""
         if self.demo_mode:
             return "590.48.01"
+        
+        if self.distro_family == "fedora":
+            ver = self._fedora_repo_driver_version()
+            return ver if ver else "580"
         
         for v in [610, 600, 590, 580, 550, 535, 525, 515]:
             result = self.run_command(["apt-cache", "show", f"nvidia-driver-{v}-open"], 
@@ -988,6 +1054,14 @@ class SystemManager:
         if self.demo_mode or install_type not in ("repo", "run"):
             return []
         missing = []
+        if self.distro_family == "fedora":
+            result = self.run_command(["rpm", "-q", "kernel-devel"], sudo=False)
+            if result[0] != 0:
+                missing.append("kernel-devel")
+            result = self.run_command(["rpm", "-q", "gcc"], sudo=False)
+            if result[0] != 0:
+                missing.append("gcc")
+            return missing
         try:
             kernel = os.uname().release
         except Exception:
@@ -1007,6 +1081,18 @@ class SystemManager:
         """Zwraca listę zainstalowanych pakietów NVIDIA (do backupu)."""
         if self.demo_mode:
             return []
+        if self.distro_family == "fedora":
+            result = self.run_command(["rpm", "-qa"], sudo=False)
+            if result[0] != 0:
+                return []
+            packages = []
+            for line in result[1].split("\n"):
+                if line and ("nvidia" in line.lower() or "akmod-nvidia" in line):
+                    pkg = line.strip()
+                    if "nvidia-gpu-firmware" in pkg:
+                        continue
+                    packages.append(pkg)
+            return packages
         result = self.run_command(["dpkg", "-l"], sudo=False)
         if result[0] != 0:
             return []
@@ -1020,8 +1106,13 @@ class SystemManager:
         return packages
 
     def get_installed_nvidia_driver_package(self) -> Optional[str]:
-        """Zwraca nazwę pakietu sterownika z repo (nvidia-driver-XXX-open) jeśli zainstalowany."""
+        """Zwraca nazwę pakietu sterownika z repo (nvidia-driver-XXX-open / akmod-nvidia) jeśli zainstalowany."""
         if self.demo_mode:
+            return None
+        if self.distro_family == "fedora":
+            result = self.run_command(["rpm", "-q", "akmod-nvidia"], sudo=False)
+            if result[0] == 0 and result[1].strip():
+                return "akmod-nvidia"
             return None
         result = self.run_command(["dpkg", "-l"], sudo=False)
         if result[0] != 0:
@@ -1075,6 +1166,23 @@ class CommandThread(QThread):
 
 
 # ============================================================================
+# WĄTEK POBRANIA WERSJI REPO (FEDORA – bez blokowania GUI)
+# ============================================================================
+
+class FetchFedoraRepoThread(QThread):
+    """Pobiera wersję akmod-nvidia w tle; na Fedorze dnf może długo trwać."""
+    version_ready = Signal(str)
+
+    def __init__(self, system):
+        super().__init__()
+        self.system = system
+
+    def run(self):
+        ver = self.system._fedora_repo_driver_version()
+        self.version_ready.emit(ver if ver else "580")
+
+
+# ============================================================================
 # WĄTEK INSTALACJI
 # ============================================================================
 
@@ -1083,6 +1191,7 @@ class InstallationThread(QThread):
     output = Signal(str, str)  # (message, level)
     finished = Signal(int)  # kod wyjścia
     ask_restart = Signal()  # pyta o restart
+    progress = Signal(int)  # 0–100, szacowany postęp instalacji (testowo)
     
     def __init__(self, window, install_type: str, params: Dict):
         super().__init__()
@@ -1093,15 +1202,18 @@ class InstallationThread(QThread):
         self.restart_needed = False
     
     def _ensure_dependencies(self):
-        """Sprawdza i doinstalowuje linux-headers, dkms, build-essential przed instalacją repo/run."""
+        """Sprawdza i doinstalowuje linux-headers, dkms, build-essential (Debian) lub kernel-devel, gcc (Fedora) przed instalacją repo/run."""
         missing = self.system.get_missing_dependency_packages(self.install_type)
         if not missing:
             return True
         self.log(self.window._tr("log_installing_deps").format(", ".join(missing)), "INFO")
-        rc, _ = self.run_cmd(["apt-get", "update", "-y"], sudo=True, silent=True)
-        if rc != 0:
-            self.log(self.window._tr("log_update_repo_failed"), "WARN")
-        rc, _ = self.run_cmd(["apt-get", "install", "-y"] + missing, sudo=True, silent=True)
+        if self.system.distro_family == "fedora":
+            rc, _ = self.run_cmd([self.system.get_dnf_cmd(), "install", "-y"] + missing, sudo=True, silent=True)
+        else:
+            rc, _ = self.run_cmd(["apt-get", "update", "-y"], sudo=True, silent=True)
+            if rc != 0:
+                self.log(self.window._tr("log_update_repo_failed"), "WARN")
+            rc, _ = self.run_cmd(["apt-get", "install", "-y"] + missing, sudo=True, silent=True)
         if rc != 0:
             self.log(self.window._tr("log_install_deps_failed"), "ERROR")
             return False
@@ -1115,24 +1227,27 @@ class InstallationThread(QThread):
             self.finished.emit(0)
             return
         self.log(self.window._tr("log_remove_nvidia_header"), "INFO")
+        self.progress.emit(15)
         self.log(self.window._tr("log_cleaning_nvidia"), "INFO")
         self.clean_nvidia_artifacts()
         self.purge_nvidia_packages()
         self.remove_dkms_modules()
         self.remove_nvidia_configs()
         self.remove_nvidia_libraries()
+        self.progress.emit(50)
         if not self.verify_nvidia_removal():
             self.log(self.window._tr("log_nvidia_libs_visible"), "WARN")
         self.log(self.window._tr("log_config_nouveau"), "INFO")
         self.configure_nouveau_for_nvk()
         self.rebuild_initramfs()
+        self.progress.emit(100)
         self.log(self.window._tr("log_nvidia_removed"), "SUCCESS")
         self.restart_needed = True
         self.ask_restart.emit()
         self.finished.emit(0)
 
     def install_upgrade_repo(self):
-        """Aktualizuje sterownik NVIDIA z repo (apt update + upgrade pakietu)."""
+        """Aktualizuje sterownik NVIDIA z repo (apt/dnf update + upgrade pakietu)."""
         if self.system.demo_mode:
             self.output.emit(self.window._tr("log_linux_only_short"), "WARN")
             self.finished.emit(0)
@@ -1143,14 +1258,19 @@ class InstallationThread(QThread):
             self.finished.emit(0)
             return
         self.log(self.window._tr("log_updating_repo_pkg").format(pkg), "INFO")
+        self.progress.emit(20)
         self._ensure_network()
-        rc, _ = self.run_cmd(["apt-get", "update", "-y"], sudo=True, silent=True)
-        if rc != 0:
-            self.log(self.window._tr("log_update_repo_failed"), "ERROR")
-            self.finished.emit(1)
-            return
-        rc, _ = self.run_cmd(["apt-get", "install", "--only-upgrade", "-y", pkg], sudo=True, silent=True)
+        if self.system.distro_family == "fedora":
+            rc, _ = self.run_cmd([self.system.get_dnf_cmd(), "upgrade", "-y", pkg], sudo=True, silent=True)
+        else:
+            rc, _ = self.run_cmd(["apt-get", "update", "-y"], sudo=True, silent=True)
+            if rc != 0:
+                self.log(self.window._tr("log_update_repo_failed"), "ERROR")
+                self.finished.emit(1)
+                return
+            rc, _ = self.run_cmd(["apt-get", "install", "--only-upgrade", "-y", pkg], sudo=True, silent=True)
         if rc == 0:
+            self.progress.emit(100)
             self.log(self.window._tr("log_driver_updated").format(pkg), "SUCCESS")
             self.restart_needed = True
             self.ask_restart.emit()
@@ -1213,7 +1333,24 @@ class InstallationThread(QThread):
             self.log(self.window._tr("log_secure_boot_advice"), "WARN")
     
     def _ensure_build_requirements(self) -> bool:
-        """Sprawdza dkms, linux-headers, build-essential; doinstalowuje brakujące. Zwraca True jeśli ok."""
+        """Sprawdza dkms, linux-headers, build-essential (Debian) lub kernel-devel, gcc (Fedora); doinstalowuje brakujące. Zwraca True jeśli ok."""
+        if self.system.distro_family == "fedora":
+            to_install = []
+            rc, _ = self.run_cmd(["rpm", "-q", "kernel-devel"], sudo=False, silent=True)
+            if rc != 0:
+                to_install.append("kernel-devel")
+            rc, _ = self.run_cmd(["rpm", "-q", "gcc"], sudo=False, silent=True)
+            if rc != 0:
+                to_install.append("gcc")
+            if not to_install:
+                return True
+            self.log(self.window._tr("log_installing_missing").format(", ".join(to_install)), "INFO")
+            rc, _ = self.run_cmd([self.system.get_dnf_cmd(), "install", "-y"] + to_install, sudo=True, silent=True, timeout=300)
+            if rc != 0:
+                self.log(self.window._tr("log_deps_install_failed"), "ERROR")
+                return False
+            self.log(self.window._tr("log_deps_install_ok"), "SUCCESS")
+            return True
         try:
             kernel = os.uname().release
         except Exception:
@@ -1277,7 +1414,7 @@ class InstallationThread(QThread):
             return
         
         self.log(self.window._tr("log_install_nvk_header"), "INFO")
-        
+        self.progress.emit(5)
         # Czyszczenie (kolejność jak w driver-manager-v2.sh)
         self.log(self.window._tr("log_cleaning_nvidia"), "INFO")
         self.clean_nvidia_artifacts()
@@ -1286,29 +1423,37 @@ class InstallationThread(QThread):
         self.remove_nvidia_configs()
         self.remove_nvidia_libraries()
         if not self.verify_nvidia_removal():
-            self.log(self.window._tr("log_nvidia_libs_visible"), "WARN")
-        
+            if self.system.distro_family == "fedora":
+                self.log(self.window._tr("log_nvidia_libs_cache_info"), "INFO")
+            else:
+                self.log(self.window._tr("log_nvidia_libs_visible"), "WARN")
+        self.progress.emit(20)
         # Konfiguracja nouveau
         self.log(self.window._tr("log_config_nouveau"), "INFO")
         self.configure_nouveau_for_nvk()
-        
+        self.progress.emit(30)
         # Instalacja pakietów
         self.log(self.window._tr("log_install_mesa_nvk"), "INFO")
         if not self.install_nvk_packages():
             self.log(self.window._tr("log_nvk_install_error"), "ERROR")
             self.finished.emit(1)
             return
-        
-        # Reinstalacja środowiska graficznego
-        self.reinstall_plasma_and_mesa()
-        self.configure_sddm_for_wayland()
-        
+        self.progress.emit(55)
+        # Na Fedorze: dracut dopiero po instalacji pakietów (firmware GSP musi być w systemie przed budową initramfs)
+        if self.system.distro_family == "fedora":
+            self.rebuild_initramfs()
+        # Reinstalacja środowiska graficznego – tylko na Debian/Ubuntu (na Fedorze pomijamy, żeby nie nadpisać działającej konfiguracji z czystej instalacji)
+        if self.system.distro_family != "fedora":
+            self.reinstall_plasma_and_mesa()
+            self.configure_sddm_for_wayland()
+        self.progress.emit(75)
         # Weryfikacja
         self.verify_nvk_installation()
-        
+        self.progress.emit(90)
         self.log(self.window._tr("log_nvk_installed"), "SUCCESS")
         self.log(self.window._tr("log_reboot_notice"), "INFO")
         self._create_nvk_reboot_service()
+        self.progress.emit(100)
         self.restart_needed = True
         self.ask_restart.emit()
         self.finished.emit(0)
@@ -1356,12 +1501,53 @@ WantedBy=multi-user.target
         self._ensure_network()
         self._check_secure_boot()
         
+        if self.system.distro_family == "fedora":
+            self.progress.emit(5)
+            self.log(self.window._tr("log_cleaning"), "INFO")
+            self.clean_nvidia_artifacts()
+            self.remove_dkms_modules()
+            self.purge_nvidia_packages()
+            dnf = self.system.get_dnf_cmd()
+            self.run_cmd([dnf, "install", "-y", "kernel-devel"], sudo=True, silent=True)
+            self.progress.emit(25)
+            self.log(self.window._tr("log_updating_repos"), "INFO")
+            self.run_cmd([dnf, "makecache", "-q"], sudo=True, silent=True)
+            rc_rpmfusion, _ = self.run_cmd(["rpm", "-q", "rpmfusion-nonfree-release"], sudo=False, silent=True)
+            if rc_rpmfusion != 0:
+                self.log("RPM Fusion nonfree: instalacja repozytorium...", "INFO")
+                res = self.system.run_command(["rpm", "-E", "%{fedora}"], sudo=False)
+                ver = res[1].strip() if res[0] == 0 and res[1] else ""
+                if ver and ver.isdigit():
+                    rpmfusion_url = f"https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-{ver}.noarch.rpm"
+                else:
+                    res = self.system.run_command(["rpm", "-E", "%{rhel}"], sudo=False)
+                    rhel_ver = res[1].strip() if res[0] == 0 and res[1] else "9"
+                    rpmfusion_url = f"https://download1.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-{rhel_ver}.noarch.rpm"
+                self.run_cmd([dnf, "install", "-y", rpmfusion_url], sudo=True, silent=True)
+            self.progress.emit(40)
+            self.log(self.window._tr("log_installing_pkg").format("akmod-nvidia"), "INFO")
+            rc, _ = self.run_cmd([dnf, "install", "-y", "akmod-nvidia", "xorg-x11-drv-nvidia", "xorg-x11-drv-nvidia-cuda"], sudo=True, silent=True)
+            if rc == 0:
+                self.progress.emit(75)
+                self.log(self.window._tr("log_driver_installed").format("akmod-nvidia"), "SUCCESS")
+                self.log(self.window._tr("log_blocking_nouveau"), "INFO")
+                self.block_nouveau()
+                self.rebuild_initramfs()
+                self.progress.emit(100)
+                self.restart_needed = True
+                self.ask_restart.emit()
+                self.finished.emit(0)
+            else:
+                self.finished.emit(1)
+            return
+        
         # Czyszczenie (kolejność jak w .sh)
+        self.progress.emit(10)
         self.log(self.window._tr("log_cleaning"), "INFO")
         self.clean_nvidia_artifacts()
         self.remove_dkms_modules()
         self.purge_nvidia_packages()
-        
+        self.progress.emit(25)
         # Instalacja headers (ensure_headers)
         try:
             kernel = os.uname().release
@@ -1377,15 +1563,17 @@ WantedBy=multi-user.target
         # Update i instalacja
         self.log(self.window._tr("log_updating_repos"), "INFO")
         self.run_cmd(["apt-get", "update", "-y"], sudo=True, silent=True)
-        
+        self.progress.emit(50)
         self.log(self.window._tr("log_installing_pkg").format(package), "INFO")
         rc, _ = self.run_cmd(["apt-get", "install", "-y", package], sudo=True, silent=True)
         
         if rc == 0:
+            self.progress.emit(85)
             self.log(self.window._tr("log_driver_installed").format(package), "SUCCESS")
             self.log(self.window._tr("log_blocking_nouveau"), "INFO")
             self.block_nouveau()
             self.rebuild_initramfs()
+            self.progress.emit(100)
             self.restart_needed = True
             self.ask_restart.emit()
             self.finished.emit(0)
@@ -1404,6 +1592,7 @@ WantedBy=multi-user.target
         label = self.params.get("label", "Production")
         
         self.log(self.window._tr("log_install_run_header").format(label, version), "INFO")
+        self.progress.emit(5)
         if not self._ensure_build_requirements():
             self.finished.emit(1)
             return
@@ -1416,29 +1605,35 @@ WantedBy=multi-user.target
                 self.log(self.window._tr("log_download_run_failed"), "ERROR")
                 self.finished.emit(1)
                 return
-        
+        self.progress.emit(20)
         # Przygotowanie
         self.log(self.window._tr("log_preparing_system"), "INFO")
         self.clean_nvidia_artifacts()
         self.remove_dkms_modules()
         self.purge_nvidia_packages()
-        
+        self.progress.emit(40)
         # Blokowanie nouveau
         self.block_nouveau()
         self.rebuild_initramfs()
-        
+        self.progress.emit(55)
         # Kopiuj plik
         system_run = INSTALL_DIR / f"NVIDIA-{version}.run"
         self.run_cmd(["mkdir", "-p", str(INSTALL_DIR)], sudo=True, silent=True)
         self.run_cmd(["cp", str(run_file), str(system_run)], sudo=True)
         self.run_cmd(["chmod", "755", str(system_run)], sudo=True)
-        
-        # Generuj skrypt instalacyjny
-        self.generate_install_script(version, label, system_run)
-        
+        self.progress.emit(75)
+        # Generuj skrypt instalacyjny (log w /var/log przy starcie – SELinux i brak user dir)
+        self.generate_install_script(version, label, system_run, log_file="/var/log/nvidia-run-install.log")
+        # Skrypt w katalogu systemowym – żeby SELinux nie blokował wykonania przy starcie
+        if IS_LINUX and SYSTEM_RUN_INSTALL_DIR:
+            self.run_cmd(["mkdir", "-p", SYSTEM_RUN_INSTALL_DIR], sudo=True, silent=True)
+            self.run_cmd(["cp", str(INSTALL_SCRIPT_DIR / "run-install-v2.sh"), f"{SYSTEM_RUN_INSTALL_DIR}/run-install-v2.sh"], sudo=True, silent=True)
+            self.run_cmd(["chmod", "+x", f"{SYSTEM_RUN_INSTALL_DIR}/run-install-v2.sh"], sudo=True, silent=True)
+            if self.system.distro_family == "fedora":
+                self.run_cmd(["restorecon", "-v", f"{SYSTEM_RUN_INSTALL_DIR}/run-install-v2.sh"], sudo=True, silent=True)
         # Generuj systemd service
         self.generate_systemd_service()
-        
+        self.progress.emit(100)
         self.log(self.window._tr("log_prepare_done_reboot"), "SUCCESS")
         self.restart_needed = True
         self.ask_restart.emit()
@@ -1480,7 +1675,7 @@ WantedBy=multi-user.target
         
         # Systemd services (brak usługi = OK, nie przerywamy)
         services = ["nvidia-persistenced", "nvidia-powerd", "nvidia-suspend", 
-                   "nvidia-resume", "nvidia-hibernate", "nvidia-driver-install", "nvk-install"]
+                   "nvidia-resume", "nvidia-hibernate", "nvidia-driver-install", "nvidia-run-install", "nvk-install"]
         for svc in services:
             self.run_cmd(["systemctl", "stop", f"{svc}.service"], sudo=True, silent=True, ignore_missing_unit=True)
             self.run_cmd(["systemctl", "disable", f"{svc}.service"], sudo=True, silent=True, ignore_missing_unit=True)
@@ -1490,7 +1685,16 @@ WantedBy=multi-user.target
         self.run_cmd(["ldconfig"], sudo=True, silent=True)
     
     def remove_dkms_modules(self):
-        """Usuwa moduły DKMS (brak modułu w DKMS = OK, nie przerywamy)"""
+        """Usuwa moduły DKMS (brak modułu w DKMS = OK, nie przerywamy). Na Fedorze brak dkms – usuwa tylko moduły nvidia z .run z /lib/modules."""
+        try:
+            kernel = os.uname().release
+        except Exception:
+            kernel = "unknown"
+        if self.system.distro_family == "fedora":
+            # Fedora: .run instaluje moduły do /lib/modules/$kernel – usuń je przy przejściu na NVK
+            self.run_cmd(["find", f"/lib/modules/{kernel}", "-name", "nvidia*.ko*", "-delete"], sudo=True, silent=True)
+            self.run_cmd(["depmod", "-a"], sudo=True, silent=True)
+            return
         rc, output = self.run_cmd(["dkms", "status"], sudo=False, silent=True)
         if rc == 0:
             for line in output.split("\n"):
@@ -1506,16 +1710,17 @@ WantedBy=multi-user.target
         
         self.run_cmd(["rm", "-rf", "/var/lib/dkms/nvidia*", "/usr/src/nvidia*", "/usr/src/NVIDIA*"], 
                     sudo=True, silent=True)
-        try:
-            kernel = os.uname().release
-        except:
-            kernel = "unknown"
         self.run_cmd(["find", f"/lib/modules/{kernel}", "-name", "nvidia*.ko*", 
                      "!", "-path", "*/updates/dkms/*", "-delete"], sudo=True, silent=True)
         self.run_cmd(["depmod", "-a"], sudo=True, silent=True)
     
     def purge_nvidia_packages(self):
         """Usuwa pakiety NVIDIA"""
+        if self.system.distro_family == "fedora":
+            packages = self.system.get_installed_nvidia_packages()
+            if packages:
+                self.run_cmd([self.system.get_dnf_cmd(), "remove", "-y"] + packages, sudo=True, silent=True)
+            return
         rc, output = self.run_cmd(["dpkg", "-l"], sudo=False, silent=True)
         if rc == 0:
             packages = []
@@ -1547,7 +1752,7 @@ WantedBy=multi-user.target
         self.run_cmd(["sh", "-c", "rm -f /usr/share/X11/xorg.conf.d/*nvidia*"], sudo=True, silent=True)
 
     def remove_nvidia_libraries(self):
-        """Usuwa biblioteki NVIDIA (zgodnie z driver-manager-v2.sh – pełna lista)"""
+        """Usuwa biblioteki NVIDIA (zgodnie z driver-manager-v2.sh – pełna lista). Na Fedorze także /usr/lib64 (instalator .run)."""
         paths_rf = [
             "/usr/lib/x86_64-linux-gnu/libnvidia*",
             "/usr/lib/i386-linux-gnu/libnvidia*",
@@ -1557,6 +1762,8 @@ WantedBy=multi-user.target
             "/lib/x86_64-linux-gnu/libnvidia*",
             "/lib/i386-linux-gnu/libnvidia*",
         ]
+        if self.system.distro_family == "fedora":
+            paths_rf.extend(["/usr/lib64/libnvidia*", "/usr/lib64/nvidia*"])
         for path in paths_rf:
             self.run_cmd(["rm", "-rf", path], sudo=True, silent=True)
         paths_f = [
@@ -1575,6 +1782,8 @@ WantedBy=multi-user.target
             "/usr/bin/nvidia*",
             "/usr/sbin/nvidia*",
         ]
+        if self.system.distro_family == "fedora":
+            paths_f.extend(["/usr/lib64/*nvidia*.so*", "/usr/lib64/libvdpau_nvidia*"])
         for path in paths_f:
             self.run_cmd(["sh", "-c", f"rm -f {path}"], sudo=True, silent=True)
         self.run_cmd(["ldconfig"], sudo=True, silent=True)
@@ -1609,17 +1818,30 @@ WantedBy=multi-user.target
             if rc != 0:
                 self.run_cmd(["sh", "-c", f"echo nouveau >> {modules_file}"], sudo=True, silent=True)
         
-        self.rebuild_initramfs()
+        # Na Fedorze dracut wywołujemy po instalacji pakietów (z firmware), żeby initramfs zawierał GSP
+        if self.system.distro_family != "fedora":
+            self.rebuild_initramfs()
     
     def install_nvk_packages(self) -> bool:
-        """Instaluje pakiety NVK"""
-        # Dodaj PPA kisak
+        """Instaluje pakiety NVK (Debian/Ubuntu: apt + PPA; Fedora: dnf)"""
+        if self.system.distro_family == "fedora":
+            packages = [
+                "nvidia-gpu-firmware",
+                "mesa-vulkan-drivers",
+                "mesa-dri-drivers",
+                "mesa-libEGL",
+                "mesa-libGL",
+                "vulkan-tools",
+                "xorg-x11-drv-nouveau",
+                "glx-utils",
+            ]
+            rc, _ = self.run_cmd([self.system.get_dnf_cmd(), "install", "-y"] + packages, sudo=True, timeout=3600)
+            return rc == 0
+        # Debian/Ubuntu
         self.run_cmd(["add-apt-repository", "-y", "ppa:kisak/kisak-mesa"], sudo=True, silent=True)
-        
         self.run_cmd(["apt-get", "update", "-y"], sudo=True, silent=True)
         self.run_cmd(["dpkg", "--add-architecture", "i386"], sudo=True, silent=True)
         self.run_cmd(["apt-get", "update", "-y"], sudo=True, silent=True)
-        
         packages = [
             "mesa-vulkan-drivers",
             "libgl1-mesa-dri",
@@ -1628,14 +1850,39 @@ WantedBy=multi-user.target
             "libglx-mesa0",
             "mesa-utils",
             "vulkan-tools",
-            "xserver-xorg-video-nouveau"
+            "xserver-xorg-video-nouveau",
         ]
-        
         rc, _ = self.run_cmd(["apt-get", "install", "-y"] + packages, sudo=True)
         return rc == 0
     
     def reinstall_plasma_and_mesa(self):
-        """Reinstaluje środowisko graficzne i Mesa (zgodnie z driver-manager-v2.sh – Plasma, Cinnamon, MATE, Xfce, GNOME)"""
+        """Reinstaluje środowisko graficzne i Mesa (Plasma, Cinnamon, MATE, Xfce, GNOME). Debian: apt, Fedora: dnf."""
+        if self.system.distro_family == "fedora":
+            rc, output = self.run_cmd(["rpm", "-qa"], sudo=False, silent=True)
+            if rc == 0 and output:
+                dnf = self.system.get_dnf_cmd()
+                if "plasma-workspace" in output:
+                    self.run_cmd([dnf, "reinstall", "-y",
+                                "sddm", "plasma-workspace", "kwin-wayland",
+                                "qt6-qtbase", "qt6-qtwayland"], sudo=True, silent=True)
+                elif "cinnamon" in output:
+                    self.run_cmd([dnf, "reinstall", "-y",
+                                "cinnamon", "cinnamon-desktop-environment",
+                                "qt6-qtbase", "qt6-qtwayland"], sudo=True, silent=True)
+                elif "mate-desktop" in output:
+                    self.run_cmd([dnf, "reinstall", "-y",
+                                "mate-desktop-environment",
+                                "qt6-qtbase", "qt6-qtwayland"], sudo=True, silent=True)
+                elif "xfce4-session" in output:
+                    self.run_cmd([dnf, "reinstall", "-y",
+                                "xfce4-session", "qt6-qtbase", "qt6-qtwayland"], sudo=True, silent=True)
+                elif "gnome-shell" in output:
+                    self.run_cmd([dnf, "reinstall", "-y",
+                                "gnome-shell", "gnome-session",
+                                "qt6-qtbase", "qt6-qtwayland"], sudo=True, silent=True)
+            self.run_cmd([self.system.get_dnf_cmd(), "reinstall", "-y",
+                        "mesa-dri-drivers", "mesa-libEGL", "mesa-libGL"], sudo=True, silent=True)
+            return
         rc, output = self.run_cmd(["dpkg", "-l"], sudo=False, silent=True)
         if rc == 0:
             if "plasma-workspace" in output:
@@ -1658,7 +1905,6 @@ WantedBy=multi-user.target
                 self.run_cmd(["apt-get", "install", "-y", "--reinstall",
                             "gnome-shell", "gnome-session",
                             "libqt6opengl6", "qt6-qpa-plugins"], sudo=True, silent=True)
-        
         self.run_cmd(["apt-get", "install", "-y", "--reinstall",
                     "libgl1-mesa-dri", "libegl-mesa0", "libgles2", "libglx-mesa0"],
                    sudo=True, silent=True)
@@ -1672,15 +1918,28 @@ WantedBy=multi-user.target
             self.run_cmd(["sed", "-i", "/Session=plasma.desktop/d", sddm_conf], sudo=True, silent=True)
     
     def verify_nvk_installation(self):
-        """Weryfikuje instalację NVK (jak w .sh – sprawdzenie pakietów NVIDIA i ldconfig)"""
-        rc, output = self.run_cmd(["dpkg", "-l"], sudo=False, silent=True)
-        if rc == 0 and output:
-            nvidia_lines = [l for l in output.split("\n") if l.startswith("ii") and "nvidia" in l.lower()]
-            if nvidia_lines:
-                self.log(self.window._tr("log_nvidia_pkgs_warning").format(len(nvidia_lines)), "WARN")
+        """Weryfikuje instalację NVK (sprawdzenie pakietów NVIDIA i ldconfig). Debian: dpkg, Fedora: rpm. Na Fedorze 1 pakiet (firmware) i ldconfig → INFO zamiast WARN."""
+        if self.system.distro_family == "fedora":
+            rc, output = self.run_cmd(["rpm", "-qa"], sudo=False, silent=True)
+            if rc == 0 and output:
+                nvidia_lines = [l for l in output.split("\n") if "nvidia" in l.lower()]
+                if nvidia_lines:
+                    if len(nvidia_lines) == 1 and "nvidia-gpu-firmware" in nvidia_lines[0].lower():
+                        self.log(self.window._tr("log_nvidia_firmware_kept"), "INFO")
+                    else:
+                        self.log(self.window._tr("log_nvidia_pkgs_warning").format(len(nvidia_lines)), "WARN")
+        else:
+            rc, output = self.run_cmd(["dpkg", "-l"], sudo=False, silent=True)
+            if rc == 0 and output:
+                nvidia_lines = [l for l in output.split("\n") if l.startswith("ii") and "nvidia" in l.lower()]
+                if nvidia_lines:
+                    self.log(self.window._tr("log_nvidia_pkgs_warning").format(len(nvidia_lines)), "WARN")
         rc2, ld_out = self.run_cmd(["ldconfig", "-p"], sudo=False, silent=True)
         if rc2 == 0 and ld_out and "nvidia" in ld_out.lower():
-            self.log(self.window._tr("log_ldconfig_warning"), "WARN")
+            if self.system.distro_family == "fedora":
+                self.log(self.window._tr("log_ldconfig_firmware_ok"), "INFO")
+            else:
+                self.log(self.window._tr("log_ldconfig_warning"), "WARN")
         self.run_cmd(["ldconfig"], sudo=True, silent=True)
     
     def block_nouveau(self):
@@ -1693,19 +1952,102 @@ WantedBy=multi-user.target
         tmp_file.unlink()
     
     def rebuild_initramfs(self):
-        """Przebudowuje initramfs"""
+        """Przebudowuje initramfs (Debian/Ubuntu: update-initramfs, Fedora: dracut)"""
         self.log(self.window._tr("log_updating_initramfs"), "INFO")
-        self.run_cmd(["update-initramfs", "-u", "-k", "all"], sudo=True, silent=True)
+        if self.system.distro_family == "fedora":
+            self.run_cmd(["dracut", "--force"], sudo=True, silent=True)
+        else:
+            self.run_cmd(["update-initramfs", "-u", "-k", "all"], sudo=True, silent=True)
     
-    def generate_install_script(self, version: str, label: str, run_file: Path):
-        """Generuje skrypt instalacyjny (pełna wersja 5-fazowa jak w driver-manager-v2.sh)."""
+    def generate_install_script(self, version: str, label: str, run_file: Path, log_file: Optional[str] = None):
+        """Generuje skrypt instalacyjny (Debian: 5-fazowy z DKMS; Fedora: bez DKMS, z dracut). log_file=None → LOG_DIR; przy instalacji na boot podaj np. /var/log/nvidia-run-install.log."""
         script_path = INSTALL_SCRIPT_DIR / "run-install-v2.sh"
-        log_file = LOG_DIR / "run-install-v2.log"
+        log_file_str = log_file if log_file is not None else str(LOG_DIR / "run-install-v2.log")
         run_file_str = str(run_file)
-        log_file_str = str(log_file)
 
-        # Pełny skrypt 5-fazowy z driver-manager-v2.sh (zatrzymanie DM, instalator, DKMS, konfiguracja, weryfikacja)
-        script_content = """#!/bin/bash
+        if self.system.distro_family == "fedora":
+            # Fedora: .run bez --dkms (instalator buduje moduł sam), potem dracut
+            script_content = """#!/bin/bash
+set -o pipefail
+
+RUN_FILE="{run_file}"
+VERSION="{version}"
+LABEL="{label}"
+LOG_FILE="{log_file}"
+
+mkdir -p "$(dirname "$LOG_FILE")" || true
+
+log() {{
+  local msg="$1"
+  local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+  local full_msg="[$timestamp] $msg"
+  echo "$full_msg" >> "$LOG_FILE" 2>/dev/null || true
+  echo "$full_msg"
+}}
+
+log "========================================="
+log "NVIDIA DRIVER INSTALLATION (Fedora)"
+log "========================================="
+log "Wersja: $VERSION ($LABEL)"
+log ""
+
+if [ ! -f "$RUN_FILE" ]; then
+  log "BŁĄD: Plik .run nie istnieje: $RUN_FILE"
+  exit 1
+fi
+
+systemctl disable nvidia-run-install.service 2>/dev/null || true
+
+log "FAZA 1: Przygotowanie..."
+log_command() {{
+  log "Wykonuję: $*"
+  "$@" >> "$LOG_FILE" 2>&1
+  local rc=$?
+  [ $rc -ne 0 ] && log "BŁĄD (kod $rc): $*"
+  return $rc
+}}
+
+log_command rm -f /etc/modprobe.d/blacklist-nouveau.conf /etc/modprobe.d/nvidia*.conf
+for dm in sddm gdm lightdm; do log_command systemctl stop $dm 2>/dev/null || true; done
+log_command modprobe -r nouveau 2>/dev/null || true
+
+log ""
+log "FAZA 2: Instalator NVIDIA (bez DKMS – budowa modułu wewnętrzna)..."
+log_command "$RUN_FILE" --silent --no-questions --accept-license --disable-nouveau --run-nvidia-xconfig
+install_exit=$?
+log "Instalator zakończony z kodem: $install_exit"
+
+kernel_ver=$(uname -r)
+log_command depmod -a
+
+log ""
+log "FAZA 3: Konfiguracja..."
+log_command bash -c 'echo "options nvidia-drm modeset=1 fbdev=1" | tee /etc/modprobe.d/nvidia-drm.conf > /dev/null'
+log_command bash -c 'echo -e "blacklist nouveau\\noptions nouveau modeset=0" | tee /etc/modprobe.d/blacklist-nouveau.conf > /dev/null'
+
+log "Aktualizacja initramfs (dracut)..."
+log_command dracut --force
+
+nvidia_modules=$(find /lib/modules/$kernel_ver -name "nvidia.ko*" 2>/dev/null | grep -v "i2c\\|forcedeth\\|typec\\|hid" | head -1)
+if [ -z "$nvidia_modules" ]; then
+  log "BŁĄD: Moduły NVIDIA nie są w kernelu"
+  exit 1
+fi
+log "SUKCES: Moduły w: $nvidia_modules"
+
+if [ -f /etc/X11/xorg.conf ]; then
+  log_command cp /etc/X11/xorg.conf /etc/X11/xorg.conf.nvidia-boot-backup
+  log_command rm -f /etc/X11/xorg.conf
+fi
+
+log_command systemctl disable nvidia-run-install.service 2>/dev/null || true
+log "Restart za 5 sekund..."
+sleep 5
+reboot
+""".format(run_file=run_file_str, version=version, label=label, log_file=log_file_str)
+        else:
+            # Debian/Ubuntu: pełny skrypt 5-fazowy z DKMS
+            script_content = """#!/bin/bash
 set -o pipefail
 
 RUN_FILE="{run_file}"
@@ -1901,7 +2243,7 @@ reboot
 """.format(run_file=run_file_str, version=version, label=label, log_file=log_file_str)
 
         tmp_script = Path("/tmp/install_script.sh")
-        with open(tmp_script, "w") as f:
+        with open(tmp_script, "w", encoding="utf-8") as f:
             f.write(script_content)
         self.run_cmd(["cp", str(tmp_script), str(script_path)], sudo=True, silent=True)
         self.run_cmd(["chmod", "+x", str(script_path)], sudo=True, silent=True)
@@ -1911,9 +2253,9 @@ reboot
             pass
 
     def generate_systemd_service(self):
-        """Generuje systemd service"""
+        """Generuje systemd service – ExecStart wskazuje skrypt w katalogu systemowym (SELinux)."""
         service_path = "/etc/systemd/system/nvidia-run-install.service"
-        script_path = INSTALL_SCRIPT_DIR / "run-install-v2.sh"
+        script_path = f"{SYSTEM_RUN_INSTALL_DIR}/run-install-v2.sh" if (IS_LINUX and SYSTEM_RUN_INSTALL_DIR) else str(INSTALL_SCRIPT_DIR / "run-install-v2.sh")
         
         service_content = f"""[Unit]
 Description=NVIDIA run install on boot (v2)
@@ -2449,15 +2791,21 @@ class DriverManagerWindow(QMainWindow):
         )
     
     def closeEvent(self, event):
-        """Wywoływane przy zamykaniu okna – czeka na wątek instalacji, żeby uniknąć crashu."""
+        """Wywoływane przy zamykaniu okna – przy instalacji pyta czy zamknąć mimo to; czeka na wątek Fedora repo."""
         if self._install_thread is not None and self._install_thread.isRunning():
-            QMessageBox.warning(
+            reply = QMessageBox.question(
                 self,
                 self._tr("title_install_in_progress"),
-                self._tr("msg_install_in_progress")
+                self._tr("msg_install_close_anyway"),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
             )
-            event.ignore()
-            return
+            if reply != QMessageBox.StandardButton.Yes:
+                event.ignore()
+                return
+        fedora_thread = getattr(self, "_fedora_repo_thread", None)
+        if fedora_thread is not None and fedora_thread.isRunning():
+            fedora_thread.wait(65000)
         self.save_settings()
         event.accept()
     
@@ -2651,6 +2999,16 @@ class DriverManagerWindow(QMainWindow):
         log_buttons.addWidget(self.btn_open_log_dir)
         
         log_layout.addWidget(log_buttons_widget)
+        # Pasek postępu instalacji (testowo) – widoczny podczas instalacji
+        self.install_progress_bar = QProgressBar()
+        self.install_progress_bar.setMinimum(0)
+        self.install_progress_bar.setMaximum(100)
+        self.install_progress_bar.setValue(0)
+        self.install_progress_bar.setTextVisible(True)
+        self.install_progress_bar.setFormat("%p%")
+        self.install_progress_bar.setVisible(False)
+        log_layout.addWidget(self.install_progress_bar)
+        
         self.log_group.setLayout(log_layout)
         layout.addWidget(self.log_group)
         
@@ -2686,10 +3044,9 @@ class DriverManagerWindow(QMainWindow):
             }
         }
         
-        # Dodaj dodatkowe informacje jeśli dostępne
-        if not DEMO_MODE:
+        # Dodaj dodatkowe informacje jeśli dostępne (na Fedorze brak dkms)
+        if not DEMO_MODE and self.system.distro_family != "fedora":
             try:
-                # DKMS status
                 result = self.system.run_command(["dkms", "status"], sudo=False)
                 if result[0] == 0:
                     report["dkms_status"] = result[1]
@@ -2827,17 +3184,76 @@ class DriverManagerWindow(QMainWindow):
         self.btn_run_legacy.setToolTip(self._tr("tt_run_legacy_ver").format(self.versions['legacy']))
         
         # Aktualizuj wersje repo (tekst przycisku i tooltip z nazwą + wersją jak w opcjach .run)
-        self._repo_ver = self.system.highest_repo_driver()
-        self._repo_latest = self.system.highest_repo_driver_latest()
-        self.btn_repo.setText(self._tr("btn_repo_fmt").format(self._repo_ver))
-        self.btn_repo.setToolTip(self._tr("tt_repo_ver").format(self._repo_ver))
-        self.btn_repo_latest.setText(self._tr("btn_repo_latest_fmt").format(self._repo_latest))
-        self.btn_repo_latest.setToolTip(self._tr("tt_repo_latest_ver").format(self._repo_latest))
+        if self.system.distro_family == "fedora":
+            self._repo_ver = self._repo_latest = "580"
+            self.btn_repo.setText(self._tr("btn_repo_fmt").format(self._repo_ver))
+            self.btn_repo.setToolTip(self._tr("tt_repo_ver").format(self._repo_ver))
+            self.btn_repo_latest.setText(self._tr("btn_repo_latest_fmt").format(self._repo_latest))
+            self.btn_repo_latest.setToolTip(self._tr("tt_repo_latest_ver").format(self._repo_latest))
+            self._fedora_repo_thread = FetchFedoraRepoThread(self.system)
+            self._fedora_repo_thread.version_ready.connect(self._on_fedora_repo_version_ready)
+            self._fedora_repo_thread.start()
+        else:
+            self._repo_ver = self.system.highest_repo_driver()
+            self._repo_latest = self.system.highest_repo_driver_latest()
+            self.btn_repo.setText(self._tr("btn_repo_fmt").format(self._repo_ver))
+            self.btn_repo.setToolTip(self._tr("tt_repo_ver").format(self._repo_ver))
+            self.btn_repo_latest.setText(self._tr("btn_repo_latest_fmt").format(self._repo_latest))
+            self.btn_repo_latest.setToolTip(self._tr("tt_repo_latest_ver").format(self._repo_latest))
         
         self.log(self._tr("log_system_info_loaded"), "SUCCESS")
         if getattr(sys, "frozen", False):
             self.log(self._tr("log_log_dir_info").format(LOG_DIR.parent), "INFO")
         self.statusBar().showMessage(self._tr("status_ready"))
+
+    def _on_install_progress(self, percent: int):
+        """Aktualizuje pasek postępu instalacji (testowo)."""
+        if hasattr(self, "install_progress_bar"):
+            self.install_progress_bar.setVisible(True)
+            self.install_progress_bar.setValue(percent)
+
+    def _hide_install_progress_bar(self):
+        """Ukrywa pasek postępu po zakończeniu instalacji."""
+        if hasattr(self, "install_progress_bar"):
+            self.install_progress_bar.setValue(0)
+            self.install_progress_bar.setVisible(False)
+
+    def _offer_install_dnf5(self) -> bool:
+        """Na Fedorze: jeśli brak dnf5, pyta czy zainstalować (dla szybszej pracy). Zwraca True (kontynuuj)."""
+        if self.system.distro_family != "fedora" or DEMO_MODE:
+            return True
+        if self.system.get_dnf_cmd() != "dnf":
+            return True
+        reply = QMessageBox.question(
+            self,
+            self._tr("title_dnf5"),
+            self._tr("msg_dnf5_offer"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return True
+        self.log(self._tr("log_installing_pkg").format("dnf5"), "INFO")
+        rc, _, _ = self.system.run_command(
+            ["dnf", "install", "-y", "dnf5"],
+            sudo=True,
+            timeout=120,
+            sudo_password=getattr(self, "_sudo_password", None),
+        )
+        if rc == 0:
+            self.system._dnf_cmd = "dnf5"
+            self.log(self._tr("log_dnf5_installed"), "SUCCESS")
+        else:
+            self.log(self._tr("log_dnf5_failed"), "WARN")
+        return True
+
+    def _on_fedora_repo_version_ready(self, ver: str):
+        """Aktualizuje wersje repo po zakończeniu pobrania w tle (tylko Fedora)."""
+        self._repo_ver = self._repo_latest = ver
+        self.btn_repo.setText(self._tr("btn_repo_fmt").format(self._repo_ver))
+        self.btn_repo.setToolTip(self._tr("tt_repo_ver").format(self._repo_ver))
+        self.btn_repo_latest.setText(self._tr("btn_repo_latest_fmt").format(self._repo_latest))
+        self.btn_repo_latest.setToolTip(self._tr("tt_repo_latest_ver").format(self._repo_latest))
     
     def _get_sudo_askpass(self) -> Optional[str]:
         """Zwraca ścieżkę do programu askpass (okienko na hasło) dla sudo -A. None jeśli brak."""
@@ -3250,24 +3666,23 @@ except Exception:
                 issues.append("Moduł nouveau nie jest dostępny")
         
         elif install_type in ["repo", "run"]:
-            # Sprawdź linux-headers
-            try:
-                kernel = os.uname().release
-            except:
-                kernel = "unknown"
-            result = self.system.run_command(["dpkg", "-l", f"linux-headers-{kernel}"], sudo=False)
-            if result[0] != 0:
-                issues.append(f"Brak linux-headers-{kernel} - wymagane do kompilacji modułów")
-            
-            # Sprawdź dkms
-            result = self.system.run_command(["which", "dkms"], sudo=False)
-            if result[0] != 0:
-                issues.append("DKMS nie jest zainstalowany - wymagany do kompilacji modułów")
-            
-            # Sprawdź build-essential
-            result = self.system.run_command(["dpkg", "-l", "build-essential"], sudo=False)
-            if result[0] != 0:
-                issues.append("build-essential nie jest zainstalowany - wymagany do kompilacji")
+            if self.system.distro_family == "fedora":
+                # Na Fedorze repo używa akmod, .run buduje moduł wewnętrznie – bez sprawdzania dkms/headers
+                pass
+            else:
+                try:
+                    kernel = os.uname().release
+                except:
+                    kernel = "unknown"
+                result = self.system.run_command(["dpkg", "-l", f"linux-headers-{kernel}"], sudo=False)
+                if result[0] != 0:
+                    issues.append(f"Brak linux-headers-{kernel} - wymagane do kompilacji modułów")
+                result = self.system.run_command(["which", "dkms"], sudo=False)
+                if result[0] != 0:
+                    issues.append("DKMS nie jest zainstalowany - wymagany do kompilacji modułów")
+                result = self.system.run_command(["dpkg", "-l", "build-essential"], sudo=False)
+                if result[0] != 0:
+                    issues.append("build-essential nie jest zainstalowany - wymagany do kompilacji")
         
         return len(issues) == 0, issues
     
@@ -3316,6 +3731,7 @@ except Exception:
             if reply == QMessageBox.StandardButton.No:
                 return
         
+        self._offer_install_dnf5()
         self.log(self._tr("log_starting_nvk"), "INFO")
         self.create_backup("nvk", "NVK")
         self.start_log("nvk")
@@ -3325,12 +3741,17 @@ except Exception:
         self._install_thread = thread
         thread.output.connect(self.log)
         thread.ask_restart.connect(lambda: self.ask_restart())
+        thread.progress.connect(self._on_install_progress)
+        if hasattr(self, "install_progress_bar"):
+            self.install_progress_bar.setValue(0)
+            self.install_progress_bar.setVisible(True)
         def _on_nvk_finished(code):
             if code == 0:
                 self.append_install_history("nvk", "NVK", success=True)
             self.log(self._tr("log_nvk_done"), "SUCCESS")
             self._install_thread = None
             self._sudo_password = None
+            QTimer.singleShot(1500, self._hide_install_progress_bar)
         thread.finished.connect(_on_nvk_finished)
         thread.start()
     
@@ -3351,6 +3772,7 @@ except Exception:
         if not requirements_ok:
             self.log(self._tr("log_deps_auto_install"), "INFO")
         
+        self._offer_install_dnf5()
         ver = self.system.highest_repo_driver()
         ver_series = ver.split(".")[0] if "." in ver else ver
         pkg = f"nvidia-driver-{ver_series}-open"
@@ -3368,12 +3790,17 @@ except Exception:
         self._install_thread = thread
         thread.output.connect(self.log)
         thread.ask_restart.connect(lambda: self.ask_restart())
+        thread.progress.connect(self._on_install_progress)
+        if hasattr(self, "install_progress_bar"):
+            self.install_progress_bar.setValue(0)
+            self.install_progress_bar.setVisible(True)
         def _on_repo_finished(code):
             if code == 0:
                 self.append_install_history("repo", ver, success=True)
             self.log(self._tr("log_install_done_restart"), "SUCCESS")
             self._install_thread = None
             self._sudo_password = None
+            QTimer.singleShot(1500, self._hide_install_progress_bar)
         thread.finished.connect(_on_repo_finished)
         thread.start()
     
@@ -3394,6 +3821,7 @@ except Exception:
         if not requirements_ok:
             self.log(self._tr("log_deps_auto_install"), "INFO")
         
+        self._offer_install_dnf5()
         ver = self.system.highest_repo_driver_latest()
         ver_series = ver.split(".")[0] if "." in ver else ver
         pkg = f"nvidia-driver-{ver_series}-open"
@@ -3411,12 +3839,17 @@ except Exception:
         self._install_thread = thread
         thread.output.connect(self.log)
         thread.ask_restart.connect(lambda: self.ask_restart())
+        thread.progress.connect(self._on_install_progress)
+        if hasattr(self, "install_progress_bar"):
+            self.install_progress_bar.setValue(0)
+            self.install_progress_bar.setVisible(True)
         def _on_repo_latest_finished(code):
             if code == 0:
                 self.append_install_history("repo", ver, success=True)
             self.log(self._tr("log_install_done_restart"), "SUCCESS")
             self._install_thread = None
             self._sudo_password = None
+            QTimer.singleShot(1500, self._hide_install_progress_bar)
         thread.finished.connect(_on_repo_latest_finished)
         thread.start()
     
@@ -3458,12 +3891,17 @@ except Exception:
         self._install_thread = thread
         thread.output.connect(self.log)
         thread.ask_restart.connect(lambda: self.ask_restart())
+        thread.progress.connect(self._on_install_progress)
+        if hasattr(self, "install_progress_bar"):
+            self.install_progress_bar.setValue(0)
+            self.install_progress_bar.setVisible(True)
         def _on_run_finished(code):
             if code == 0:
                 self.append_install_history("run", version, success=True)
             self.log(self._tr("log_prepare_done"), "SUCCESS")
             self._install_thread = None
             self._sudo_password = None
+            QTimer.singleShot(1500, self._hide_install_progress_bar)
         thread.finished.connect(_on_run_finished)
         thread.start()
     
@@ -3482,9 +3920,14 @@ except Exception:
         self._install_thread = thread
         thread.output.connect(self.log)
         thread.ask_restart.connect(lambda: self.ask_restart())
+        thread.progress.connect(self._on_install_progress)
+        if hasattr(self, "install_progress_bar"):
+            self.install_progress_bar.setValue(0)
+            self.install_progress_bar.setVisible(True)
         def _on_finished(code):
             self._install_thread = None
             self._sudo_password = None
+            QTimer.singleShot(1500, self._hide_install_progress_bar)
         thread.finished.connect(_on_finished)
         thread.start()
     
@@ -3500,15 +3943,21 @@ except Exception:
             return
         if not self.check_sudo():
             return
+        self._offer_install_dnf5()
         self.log(self._tr("log_updating_pkg").format(pkg), "INFO")
         self.start_log("upgrade-repo")
         thread = InstallationThread(self, "upgrade_repo", {"sudo_password": getattr(self, "_sudo_password", None)})
         self._install_thread = thread
         thread.output.connect(self.log)
         thread.ask_restart.connect(lambda: self.ask_restart())
+        thread.progress.connect(self._on_install_progress)
+        if hasattr(self, "install_progress_bar"):
+            self.install_progress_bar.setValue(0)
+            self.install_progress_bar.setVisible(True)
         def _on_finished(code):
             self._install_thread = None
             self._sudo_password = None
+            QTimer.singleShot(1500, self._hide_install_progress_bar)
         thread.finished.connect(_on_finished)
         thread.start()
     
@@ -3569,7 +4018,7 @@ except Exception:
             self.log(self._tr("log_cannot_open_dir").format(e), "ERROR")
     
     def check_and_install_dependencies(self):
-        """Sprawdza i doinstalowuje linux-headers, dkms, build-essential."""
+        """Sprawdza i doinstalowuje linux-headers, dkms, build-essential (Debian) lub kernel-devel, gcc (Fedora)."""
         if DEMO_MODE:
             self.log(self._tr("log_deps_linux_only"), "WARN")
             return
@@ -3581,14 +4030,19 @@ except Exception:
         if not self.check_sudo():
             return
         self.log(self._tr("log_installing_missing").format(", ".join(missing)), "INFO")
-        rc, _ = self.system.run_command(
-            ["apt-get", "update", "-y"], sudo=True, timeout=120,
-            sudo_password=getattr(self, "_sudo_password", None))
-        if rc != 0:
-            self.log(self._tr("log_update_repo_failed"), "WARN")
-        rc, out = self.system.run_command(
-            ["apt-get", "install", "-y"] + missing, sudo=True, timeout=300,
-            sudo_password=getattr(self, "_sudo_password", None))
+        if self.system.distro_family == "fedora":
+            rc, out = self.system.run_command(
+                [self.system.get_dnf_cmd(), "install", "-y"] + missing, sudo=True, timeout=300,
+                sudo_password=getattr(self, "_sudo_password", None))
+        else:
+            rc, _ = self.system.run_command(
+                ["apt-get", "update", "-y"], sudo=True, timeout=120,
+                sudo_password=getattr(self, "_sudo_password", None))
+            if rc != 0:
+                self.log(self._tr("log_update_repo_failed"), "WARN")
+            rc, out = self.system.run_command(
+                ["apt-get", "install", "-y"] + missing, sudo=True, timeout=300,
+                sudo_password=getattr(self, "_sudo_password", None))
         if rc == 0:
             self.log(self._tr("log_deps_install_ok"), "SUCCESS")
             QMessageBox.information(self, self._tr("title_deps"), self._tr("msg_deps_installed_ok"))
@@ -3763,11 +4217,16 @@ except Exception:
                     self.log(strip_ansi(line), "INFO")
         else:
             self.log(self._tr("log_inxi_installing"), "INFO")
-            result = self.system.run_command(["sudo", "apt-get", "install", "-y", "inxi"], sudo=False)
+            if self.system.distro_family == "fedora":
+                install_cmd = ["sudo", self.system.get_dnf_cmd(), "install", "-y", "inxi"]
+            else:
+                install_cmd = ["sudo", "apt-get", "install", "-y", "inxi"]
+            result = self.system.run_command(install_cmd, sudo=False)
             if result[0] == 0:
                 self.log(self._tr("log_inxi_installed"), "SUCCESS")
                 result = self.system.run_command(["inxi", "-G", "-c", "0"], sudo=False)
                 if result[0] == 0:
+                    self.log(self._tr("log_status_system"), "INFO")
                     for line in result[1].split("\n"):
                         if line.strip():
                             self.log(strip_ansi(line), "INFO")
@@ -3903,6 +4362,7 @@ def _dark_palette():
 
 
 def main():
+    os.environ.setdefault("QT_LOGGING_RULES", "qt.qpa.services=false")
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     
