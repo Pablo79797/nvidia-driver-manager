@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-NVIDIA Driver Manager v2.0 - Graficzna wersja
+NVIDIA Driver Manager v1.1 - Graficzna wersja
 Kompatybilna w 100% z Linuxem (Ubuntu/Kubuntu/Debian)
 
 Środowiska graficzne:
@@ -151,7 +151,7 @@ HISTORY_FILE = CACHE_STATE_DIR / "install_history.json"
 # Tłumaczenia UI (język wybierany w menu Ustawienia → Język)
 TRANSLATIONS = {
     "pl": {
-        "window_title": "NVIDIA Driver Manager v1.0",
+        "window_title": "NVIDIA Driver Manager v1.1",
         "menu_settings": "Ustawienia",
         "menu_theme": "Motyw",
         "menu_language": "Język",
@@ -200,7 +200,7 @@ TRANSLATIONS = {
         "reset_ok_text": "Ustawienia zostały zresetowane do domyślnych wartości.",
         "about_title": "O programie",
         "about_text": (
-            "<h2>NVIDIA Driver Manager v1.0</h2>"
+            "<h2>NVIDIA Driver Manager v1.1</h2>"
             "<p>Graficzna aplikacja do zarządzania sterownikami NVIDIA dla Linuxa.</p>"
             "<p><b>Funkcje:</b></p>"
             "<ul>"
@@ -433,7 +433,7 @@ TRANSLATIONS = {
         "install_history_label": "Data, typ, wersja, sukces:",
     },
     "en": {
-        "window_title": "NVIDIA Driver Manager v1.0",
+        "window_title": "NVIDIA Driver Manager v1.1",
         "menu_settings": "Settings",
         "menu_theme": "Theme",
         "menu_language": "Language",
@@ -482,7 +482,7 @@ TRANSLATIONS = {
         "reset_ok_text": "Settings have been reset to default values.",
         "about_title": "About",
         "about_text": (
-            "<h2>NVIDIA Driver Manager v1.0</h2>"
+            "<h2>NVIDIA Driver Manager v1.1</h2>"
             "<p>Graphical application for managing NVIDIA drivers on Linux.</p>"
             "<p><b>Features:</b></p>"
             "<ul>"
