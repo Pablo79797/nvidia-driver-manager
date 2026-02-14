@@ -137,6 +137,7 @@ Program tworzy następujące katalogi w `~/.local/share/nvidia-driver-manager/`:
 
 ## ⚠️ Uwagi
 
+- **Testowane na:** Kubuntu 25.10 (baza Debian), Fedora 43 z KDE Plasma Desktop.
 - **Secure Boot**: Jeśli jest włączony, instalacja modułów DKMS może wymagać podpisania lub wyłączenia Secure Boot.
 - **NVK**: Wymaga kernela 6.0+. Usuwa sterowniki NVIDIA i DKMS. **Nie wspiera CUDA.**
 - **Instalacja .run**: Instalacja następuje po restarcie systemu.
